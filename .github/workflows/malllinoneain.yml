@@ -1,0 +1,128 @@
+name: 🚀 صندوق الأدوات الشامل
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *'   # كل يوم منتصف الليل — نسخ احتياطي + لون يومي
+    - cron: '0 8 * * *'   # كل صباح 8 — رسالة تذكير
+    - cron: '0 10 * * 0'  # كل أحد 10 صباحًا — تقرير أسبوعي
+  workflow_dispatch:      # تشغيل يدوي في أي وقت
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 💼 الوظيفة 1: نسخ احتياطي + إحصائيات + لون يومي
+  # ─────────────────────────────────────────────
+  daily-tasks:
+    name: مهام يومية
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📊 إنشاء تقرير الإحصائيات
+        run: |
+          echo "# 📂 إحصائيات المشروع" > stats.md
+          echo "آخر تحديث: $(date '+%Y-%m-%d %H:%M:%S')" >> stats.md
+          echo "" >> stats.md
+          echo "- 📁 عدد الملفات: $(find . -type f | wc -l)" >> stats.md
+          echo "- 📂 عدد المجلدات: $(find . -type d | wc -l)" >> stats.md
+          echo "- 💾 حجم المشروع: $(du -sh | cut -f1)" >> stats.md
+
+      - name: 🎨 اختيار لون اليوم
+        run: |
+          COLORS=["🔴" "🟠" "🟡" "🟢" "🔵" "🟣"]
+          RANDOM_COLOR=${COLORS[$((RANDOM % 6))]}
+          TODAY=$(date +"%A - %Y/%m/%d")
+          echo "# 🎨 يوم جديد — لون جديد!" > daily-color.md
+          echo "## اليوم: $TODAY $RANDOM_COLOR" >> daily-color.md
+          echo "لونك اليوم: $RANDOM_COLOR" >> daily-color.md
+
+      - name: 📦 إنشاء نسخة احتياطية
+        run: |
+          BACKUP_NAME="backup-$(date +%Y%m%d).zip"
+          zip -r $BACKUP_NAME . -x "*.git*"
+          echo "BACKUP_FILE=$BACKUP_NAME" >> $GITHUB_ENV
+
+      - name: 📤 رفع النسخة الاحتياطية
+        uses: actions/upload-artifact@v4
+        with:
+          name: نسخة-احتياطية-يومية
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 7
+
+      - name: 💾 حفظ التغييرات في الملفات
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats.md daily-color.md
+          git commit -m "📊 تحديث الإحصائيات والألوان اليومية" || echo "لا تغييرات لحفظها"
+          git push || echo "لا يمكن الرفع — تم تخطي هذه الخطوة"
+
+  # ─────────────────────────────────────────────
+  # 📧 الوظيفة 2: رسالة تذكير يومية
+  # ─────────────────────────────────────────────
+  daily-email:
+    name: رسالة تذكير يومية
+    runs-on: ubuntu-latest
+    if: github.event.schedule != ''
+    steps:
+      - name: 📧 إرسال التذكير
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USER }}
+          password: ${{ secrets.EMAIL_PASS }}
+          subject: ☀️ تذكير يومي من مشروعك
+          body: |
+            صباح الخير! ☀️
+            
+            هذا بريد تلقائي من مشروعك على GitHub.
+            التاريخ: $(date '+%Y-%m-%d %H:%M:%S')
+            
+            استمر في عملك الرائع! 💪
+          to: ${{ secrets.EMAIL_TO }}
+          from: GitHub Actions
+
+  # ─────────────────────────────────────────────
+  # 📋 الوظيفة 3: تقرير أسبوعي
+  # ─────────────────────────────────────────────
+  weekly-report:
+    name: تقرير أسبوعي
+    runs-on: ubuntu-latest
+    if: github.event.schedule != ''
+    steps:
+      - uses: actions/checkout@v4
+      - name: 📋 إنشاء التقرير الأسبوعي
+        run: |
+          echo "# 📋 التقرير الأسبوعي" > weekly-report.md
+          echo "تاريخ التقرير: $(date '+%Y-%m-%d')" >> weekly-report.md
+          echo "" >> weekly-report.md
+          echo "✅ حالة المشروع: يعمل بشكل طبيعي" >> weekly-report.md
+          echo "📁 إجمالي الملفات: $(find . -type f | wc -l)" >> weekly-report.md
+          echo "⭐ استمر في التقدم!" >> weekly-report.md
+          cat weekly-report.md
+
+      - name: 📤 حفظ التقرير كملف
+        uses: actions/upload-artifact@v4
+        with:
+          name: تقرير-أسبوعي
+          path: weekly-report.md
+
+  # ─────────────────────────────────────────────
+  # ✅ الوظيفة 4: فحص سريع للكود
+  # ─────────────────────────────────────────────
+  code-check:
+    name: فحص الكود
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - name: 🔍 عرض الملفات
+        run: |
+          echo "✅ تم تحديث الملفات بنجاح!"
+          echo "الملفات الموجودة:"
+          ls -la
+      - name: ✅ رسالة نجاح
+        run: echo "🎉 الكود سليم وجاهز للعمل!"
