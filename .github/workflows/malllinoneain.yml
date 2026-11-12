@@ -30,8 +30,9 @@ jobs:
 
       - name: 🎨 اختيار لون اليوم
         run: |
-          COLORS=["🔴" "🟠" "🟡" "🟢" "🔵" "🟣"]
-          RANDOM_COLOR=${COLORS[$((RANDOM % 6))]}
+          COLORS=("🔴" "🟠" "🟡" "🟢" "🔵" "🟣")
+          RANDOM_INDEX=$(( RANDOM % 6 ))
+          RANDOM_COLOR=${COLORS[$RANDOM_INDEX]}
           TODAY=$(date +"%A - %Y/%m/%d")
           echo "# 🎨 يوم جديد — لون جديد!" > daily-color.md
           echo "## اليوم: $TODAY $RANDOM_COLOR" >> daily-color.md
@@ -126,3 +127,4 @@ jobs:
           ls -la
       - name: ✅ رسالة نجاح
         run: echo "🎉 الكود سليم وجاهز للعمل!"
+        
